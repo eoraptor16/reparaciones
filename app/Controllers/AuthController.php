@@ -2,38 +2,57 @@
 
 namespace App\Controllers;
 
-use App\Models\UsuarioModel;
+use App\Models\AdministradorModel;
+use App\Models\DepartamentoModel;
 
 class AuthController extends BaseController
 {
     public function index()
     {
         if (session()->get('logged_in')) {
-            return redirect()->to('panel');
+            if (session()->get('rol') === 'admin') {
+                return redirect()->to('admin/panel');
+            }
+            return redirect()->to('departamento/reportar');
         }
+
         return view('auth/login');
     }
 
     public function autenticar()
     {
         $session = session();
-        $usuarioModel = new UsuarioModel();
+        $usuario = trim((string) $this->request->getPost('usuario'));
+        $password = (string) $this->request->getPost('password');
 
-        $usuario = $this->request->getPost('usuario');
-        $password = $this->request->getPost('password');
+        $adminModel = new AdministradorModel();
+        $datosAdmin = $adminModel->where('usuario', $usuario)->first();
 
-        $datosUsuario = $usuarioModel->where('usuario', $usuario)->first();
+        if ($datosAdmin && $password === $datosAdmin['password']) {
+            $session->set([
+                'id'          => $datosAdmin['id'],
+                'usuario'     => $datosAdmin['usuario'],
+                'nombre_area' => $datosAdmin['nombre_area'],
+                'rol'         => 'admin',
+                'logged_in'   => true
+            ]);
 
-        if ($datosUsuario) {
-            if ($password === $datosUsuario['password']) {
-                $sesionData = [
-                    'id'       => $datosUsuario['id'],
-                    'usuario'  => $datosUsuario['usuario'],
-                    'logged_in' => true
-                ];
-                $session->set($sesionData);
-                return redirect()->to('panel');
-            }
+            return redirect()->to('admin/panel');
+        }
+
+        $departamentoModel = new DepartamentoModel();
+        $datosDepto = $departamentoModel->where('usuario', $usuario)->first();
+
+        if ($datosDepto && $password === $datosDepto['password']) {
+            $session->set([
+                'id'                  => $datosDepto['id'],
+                'usuario'             => $datosDepto['usuario'],
+                'nombre_departamento' => $datosDepto['nombre_departamento'],
+                'rol'                 => 'departamento',
+                'logged_in'           => true
+            ]);
+
+            return redirect()->to('departamento/reportar');
         }
 
         return redirect()->back()->with('error', 'Credenciales inválidas');
